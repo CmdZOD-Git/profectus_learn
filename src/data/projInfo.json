@@ -1,14 +1,14 @@
 {
 	"$schema": "./projInfo-schema.json",
 
-	"title": "Profectus",
-	"description": "A project made in Profectus",
+	"title": "Learning",
+	"description": "1st game to learn the rope",
 	"id": "profectus_learn",
 	"author": "Z.",
 	"discordName": "",
 	"discordLink": "",
 
-	"versionNumber": "0.0",
+	"versionNumber": "0.1",
 	"versionTitle": "Initial Commit",
 
 	"allowGoBack": true,
