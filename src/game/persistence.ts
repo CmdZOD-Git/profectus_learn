@@ -7,6 +7,8 @@ import Decimal from "util/bignum";
 import { ProxyState } from "util/proxies";
 import type { Ref, WritableComputedRef } from "vue";
 import { computed, isReactive, isRef, ref } from "vue";
+import player from "./player";
+import state from "./state";
 
 /**
  * A symbol used in {@link Persistent} objects.
@@ -38,6 +40,11 @@ export const NonPersistent = Symbol("NonPersistent");
  * @see {@link Persistent[SaveDataPath]}
  */
 export const SaveDataPath = Symbol("SaveDataPath");
+/**
+ * A symbol used in {@link Persistent} objects.
+ * @see {@link Persistent[CheckNaN]}
+ */
+export const CheckNaN = Symbol("CheckNaN");
 
 /**
  * This is a union of things that should be safely stringifiable without needing special processes or knowing what to load them in as.
@@ -56,6 +63,7 @@ export type State =
  * A {@link Ref} that has been augmented with properties to allow it to be saved and loaded within the player save data object.
  */
 export type Persistent<T extends State = State> = Ref<T> & {
+    value: T;
     /** A flag that this is a persistent property. Typically a circular reference. */
     [PersistentState]: Ref<T>;
     /** The value the ref should be set to in a fresh save, or when updating an old save to the current version. */
@@ -75,6 +83,10 @@ export type Persistent<T extends State = State> = Ref<T> & {
      * The path this persistent appears in within the save data object. Predominantly used to ensure it's only placed in there one time.
      */
     [SaveDataPath]: string[] | undefined;
+    /**
+     * Whether or not to NaN-check this ref. Should only be true on values expected to always be DecimalSources.
+     */
+    [CheckNaN]: boolean;
 };
 
 export type NonPersistent<T extends State = State> = WritableComputedRef<T> & { [DefaultValue]: T };
@@ -89,31 +101,77 @@ function getStackTrace() {
     );
 }
 
+function checkNaNAndWrite<T extends State>(persistent: Persistent<T>, value: T) {
+    // Decimal is smart enough to return false on things that aren't supposed to be numbers
+    if (Decimal.isNaN(value as DecimalSource)) {
+        if (!state.hasNaN) {
+            player.autosave = false;
+            state.hasNaN = true;
+            state.NaNPath = persistent[SaveDataPath];
+            state.NaNPersistent = persistent as Persistent<DecimalSource>;
+        }
+        console.error(
+            `Attempted to save NaN value to`,
+            persistent[SaveDataPath]?.join("."),
+            persistent
+        );
+        throw new Error("Attempted to set NaN value. See above for details");
+    }
+    persistent[PersistentState].value = value;
+}
+
 /**
  * Create a persistent ref, which can be saved and loaded.
  * All (non-deleted) persistent refs must be included somewhere within the layer object returned by that layer's options func.
  * @param defaultValue The value the persistent ref should start at on fresh saves or when reset.
+ * @param checkNaN Whether or not to check this ref for being NaN on set. Only use on refs that should always be DecimalSources.
  */
-export function persistent<T extends State>(defaultValue: T | Ref<T>): Persistent<T> {
-    const persistent = (
-        isRef(defaultValue) ? defaultValue : (ref<T>(defaultValue) as unknown)
-    ) as Persistent<T>;
+export function persistent<T extends State>(
+    defaultValue: T | Ref<T>,
+    checkNaN = true
+): Persistent<T> {
+    const persistentState: Ref<T> = isRef(defaultValue)
+        ? defaultValue
+        : (ref<T>(defaultValue) as Ref<T>);
 
-    persistent[PersistentState] = persistent;
-    persistent[DefaultValue] = isRef(defaultValue) ? defaultValue.value : defaultValue;
-    persistent[StackTrace] = getStackTrace();
-    persistent[Deleted] = false;
-    const nonPersistent: Partial<NonPersistent<T>> = computed({
+    if (isRef(defaultValue)) {
+        defaultValue = defaultValue.value;
+    }
+
+    const nonPersistent = computed({
         get() {
-            return persistent.value;
+            return persistentState.value;
         },
         set(value) {
-            persistent.value = value;
+            if (checkNaN) {
+                checkNaNAndWrite(persistent, value);
+            } else {
+                persistent[PersistentState].value = value;
+            }
         }
-    });
-    nonPersistent[DefaultValue] = persistent[DefaultValue];
-    persistent[NonPersistent] = nonPersistent as NonPersistent<T>;
-    persistent[SaveDataPath] = undefined;
+    }) as NonPersistent<T>;
+    nonPersistent[DefaultValue] = defaultValue;
+
+    // We're trying to mock a vue ref, which means the type expects a private [RefSymbol] property that we can't access, but the actual implementation of isRef just checks for `__v_isRef`
+    const persistent = {
+        get value() {
+            return persistentState.value as T;
+        },
+        set value(value: T) {
+            if (checkNaN) {
+                checkNaNAndWrite(persistent, value);
+            } else {
+                persistent[PersistentState].value = value;
+            }
+        },
+        __v_isRef: true,
+        [PersistentState]: persistentState,
+        [DefaultValue]: defaultValue,
+        [StackTrace]: getStackTrace(),
+        [Deleted]: false,
+        [NonPersistent]: nonPersistent,
+        [SaveDataPath]: undefined
+    } as unknown as Persistent<T>;
 
     if (addingLayers.length === 0) {
         console.warn(
@@ -125,15 +183,14 @@ export function persistent<T extends State>(defaultValue: T | Ref<T>): Persisten
         persistentRefs[addingLayers[addingLayers.length - 1]].add(persistent);
     }
 
-    return persistent as Persistent<T>;
+    return persistent;
 }
 
 /**
  * Type guard for whether an arbitrary value is a persistent ref
  * @param value The value that may or may not be a persistent ref
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isPersistent(value: any): value is Persistent {
+export function isPersistent(value: unknown): value is Persistent {
     return value != null && typeof value === "object" && PersistentState in value;
 }
 

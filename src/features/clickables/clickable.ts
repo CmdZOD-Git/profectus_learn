@@ -22,7 +22,7 @@ import { computed, unref } from "vue";
 export const ClickableType = Symbol("Clickable");
 
 export interface ClickableOptions {
-    visibility?: Computable<Visibility>;
+    visibility?: Computable<Visibility | boolean>;
     canClick?: Computable<boolean>;
     classes?: Computable<Record<string, boolean>>;
     style?: Computable<StyleValue>;
@@ -42,7 +42,7 @@ export interface ClickableOptions {
 export interface BaseClickable {
     id: string;
     type: typeof ClickableType;
-    [Component]: typeof ClickableComponent;
+    [Component]: GenericComponent;
     [GatherProps]: () => Record<string, unknown>;
 }
 
@@ -61,7 +61,7 @@ export type Clickable<T extends ClickableOptions> = Replace<
 export type GenericClickable = Replace<
     Clickable<ClickableOptions>,
     {
-        visibility: ProcessedComputable<Visibility>;
+        visibility: ProcessedComputable<Visibility | boolean>;
         canClick: ProcessedComputable<boolean>;
     }
 >;
@@ -73,7 +73,7 @@ export function createClickable<T extends ClickableOptions>(
         const clickable = optionsFunc?.() ?? ({} as ReturnType<NonNullable<typeof optionsFunc>>);
         clickable.id = getUniqueID("clickable-");
         clickable.type = ClickableType;
-        clickable[Component] = ClickableComponent;
+        clickable[Component] = ClickableComponent as GenericComponent;
 
         processComputable(clickable as T, "visibility");
         setDefault(clickable, "visibility", Visibility.Visible);

@@ -1,4 +1,10 @@
-import type { CoercableComponent, OptionsFunc, Replace, StyleValue } from "features/feature";
+import type {
+    CoercableComponent,
+    GenericComponent,
+    OptionsFunc,
+    Replace,
+    StyleValue
+} from "features/feature";
 import { Component, GatherProps, getUniqueID, setDefault, Visibility } from "features/feature";
 import type { Link } from "features/links/links";
 import type { GenericReset } from "features/reset";
@@ -23,7 +29,7 @@ export const TreeNodeType = Symbol("TreeNode");
 export const TreeType = Symbol("Tree");
 
 export interface TreeNodeOptions {
-    visibility?: Computable<Visibility>;
+    visibility?: Computable<Visibility | boolean>;
     canClick?: Computable<boolean>;
     color?: Computable<string>;
     display?: Computable<CoercableComponent>;
@@ -39,7 +45,7 @@ export interface TreeNodeOptions {
 export interface BaseTreeNode {
     id: string;
     type: typeof TreeNodeType;
-    [Component]: typeof TreeNodeComponent;
+    [Component]: GenericComponent;
     [GatherProps]: () => Record<string, unknown>;
 }
 
@@ -60,7 +66,7 @@ export type TreeNode<T extends TreeNodeOptions> = Replace<
 export type GenericTreeNode = Replace<
     TreeNode<TreeNodeOptions>,
     {
-        visibility: ProcessedComputable<Visibility>;
+        visibility: ProcessedComputable<Visibility | boolean>;
         canClick: ProcessedComputable<boolean>;
     }
 >;
@@ -72,7 +78,7 @@ export function createTreeNode<T extends TreeNodeOptions>(
         const treeNode = optionsFunc?.() ?? ({} as ReturnType<NonNullable<typeof optionsFunc>>);
         treeNode.id = getUniqueID("treeNode-");
         treeNode.type = TreeNodeType;
-        treeNode[Component] = TreeNodeComponent;
+        treeNode[Component] = TreeNodeComponent as GenericComponent;
 
         processComputable(treeNode as T, "visibility");
         setDefault(treeNode, "visibility", Visibility.Visible);
@@ -87,9 +93,9 @@ export function createTreeNode<T extends TreeNodeOptions>(
 
         if (treeNode.onClick) {
             const onClick = treeNode.onClick.bind(treeNode);
-            treeNode.onClick = function () {
+            treeNode.onClick = function (e) {
                 if (unref(treeNode.canClick) !== false) {
-                    onClick();
+                    onClick(e);
                 }
             };
         }
@@ -141,7 +147,7 @@ export interface TreeBranch extends Omit<Link, "startNode" | "endNode"> {
 }
 
 export interface TreeOptions {
-    visibility?: Computable<Visibility>;
+    visibility?: Computable<Visibility | boolean>;
     nodes: Computable<GenericTreeNode[][]>;
     leftSideNodes?: Computable<GenericTreeNode[]>;
     rightSideNodes?: Computable<GenericTreeNode[]>;
@@ -157,7 +163,7 @@ export interface BaseTree {
     isResetting: Ref<boolean>;
     resettingNode: Ref<GenericTreeNode | null>;
     type: typeof TreeType;
-    [Component]: typeof TreeComponent;
+    [Component]: GenericComponent;
     [GatherProps]: () => Record<string, unknown>;
 }
 
@@ -175,7 +181,7 @@ export type Tree<T extends TreeOptions> = Replace<
 export type GenericTree = Replace<
     Tree<TreeOptions>,
     {
-        visibility: ProcessedComputable<Visibility>;
+        visibility: ProcessedComputable<Visibility | boolean>;
     }
 >;
 
@@ -186,7 +192,7 @@ export function createTree<T extends TreeOptions>(
         const tree = optionsFunc();
         tree.id = getUniqueID("tree-");
         tree.type = TreeType;
-        tree[Component] = TreeComponent;
+        tree[Component] = TreeComponent as GenericComponent;
 
         tree.isResetting = ref(false);
         tree.resettingNode = shallowRef(null);

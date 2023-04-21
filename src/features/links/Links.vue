@@ -54,10 +54,10 @@ const validLinks = computed(() => {
 
 svg {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
     z-index: -10;
     pointer-events: none;
 }

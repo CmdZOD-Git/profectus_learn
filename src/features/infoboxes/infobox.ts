@@ -1,4 +1,10 @@
-import type { CoercableComponent, OptionsFunc, Replace, StyleValue } from "features/feature";
+import type {
+    CoercableComponent,
+    GenericComponent,
+    OptionsFunc,
+    Replace,
+    StyleValue
+} from "features/feature";
 import { Component, GatherProps, getUniqueID, setDefault, Visibility } from "features/feature";
 import InfoboxComponent from "features/infoboxes/Infobox.vue";
 import type { Persistent } from "game/persistence";
@@ -16,7 +22,7 @@ import { unref } from "vue";
 export const InfoboxType = Symbol("Infobox");
 
 export interface InfoboxOptions {
-    visibility?: Computable<Visibility>;
+    visibility?: Computable<Visibility | boolean>;
     color?: Computable<string>;
     style?: Computable<StyleValue>;
     titleStyle?: Computable<StyleValue>;
@@ -30,7 +36,7 @@ export interface BaseInfobox {
     id: string;
     collapsed: Persistent<boolean>;
     type: typeof InfoboxType;
-    [Component]: typeof InfoboxComponent;
+    [Component]: GenericComponent;
     [GatherProps]: () => Record<string, unknown>;
 }
 
@@ -51,19 +57,19 @@ export type Infobox<T extends InfoboxOptions> = Replace<
 export type GenericInfobox = Replace<
     Infobox<InfoboxOptions>,
     {
-        visibility: ProcessedComputable<Visibility>;
+        visibility: ProcessedComputable<Visibility | boolean>;
     }
 >;
 
 export function createInfobox<T extends InfoboxOptions>(
     optionsFunc: OptionsFunc<T, BaseInfobox, GenericInfobox>
 ): Infobox<T> {
-    const collapsed = persistent<boolean>(false);
+    const collapsed = persistent<boolean>(false, false);
     return createLazyProxy(() => {
         const infobox = optionsFunc();
         infobox.id = getUniqueID("infobox-");
         infobox.type = InfoboxType;
-        infobox[Component] = InfoboxComponent;
+        infobox[Component] = InfoboxComponent as GenericComponent;
 
         infobox.collapsed = collapsed;
 

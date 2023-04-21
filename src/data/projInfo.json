@@ -1,14 +1,14 @@
 {
 	"$schema": "./projInfo-schema.json",
 
-	"title": "Learning",
-	"description": "1st game to learn the rope",
-	"id": "profectus_learn",
-	"author": "Z.",
+	"title": "Profectus Demo",
+	"description": "A demo project made in Profectus",
+	"id": "profectus-demo",
+	"author": "",
 	"discordName": "",
 	"discordLink": "",
 
-	"versionNumber": "0.1",
+	"versionNumber": "0.0",
 	"versionTitle": "Initial Commit",
 
 	"allowGoBack": true,
@@ -16,8 +16,8 @@
 	"defaultDecimalsShown": 2,
 	"useHeader": true,
 	"banner": null,
-	"logo": "",
-	"initialTabs": [ "main" ],
+	"logo": "Logo.png",
+	"initialTabs": [ "main", "c" ],
 
 	"maxTickLength": 3600,
 	"offlineLimit": 1,

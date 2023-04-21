@@ -1,5 +1,5 @@
 import BoardComponent from "features/boards/Board.vue";
-import type { OptionsFunc, Replace, StyleValue } from "features/feature";
+import type { GenericComponent, OptionsFunc, Replace, StyleValue } from "features/feature";
 import {
     Component,
     findFeatures,
@@ -129,7 +129,7 @@ export type GenericNodeType = Replace<
 
 export interface BoardNodeActionOptions {
     id: string;
-    visibility?: NodeComputable<Visibility>;
+    visibility?: NodeComputable<Visibility | boolean>;
     icon: NodeComputable<string>;
     fillColor?: NodeComputable<string>;
     tooltip: NodeComputable<string>;
@@ -155,12 +155,12 @@ export type BoardNodeAction<T extends BoardNodeActionOptions> = Replace<
 export type GenericBoardNodeAction = Replace<
     BoardNodeAction<BoardNodeActionOptions>,
     {
-        visibility: NodeComputable<Visibility>;
+        visibility: NodeComputable<Visibility | boolean>;
     }
 >;
 
 export interface BoardOptions {
-    visibility?: Computable<Visibility>;
+    visibility?: Computable<Visibility | boolean>;
     height?: Computable<string>;
     width?: Computable<string>;
     classes?: Computable<Record<string, boolean>>;
@@ -178,7 +178,7 @@ export interface BaseBoard {
     selectedAction: Ref<GenericBoardNodeAction | null>;
     mousePosition: Ref<{ x: number; y: number } | null>;
     type: typeof BoardType;
-    [Component]: typeof BoardComponent;
+    [Component]: GenericComponent;
     [GatherProps]: () => Record<string, unknown>;
 }
 
@@ -199,7 +199,7 @@ export type Board<T extends BoardOptions> = Replace<
 export type GenericBoard = Replace<
     Board<BoardOptions>,
     {
-        visibility: ProcessedComputable<Visibility>;
+        visibility: ProcessedComputable<Visibility | boolean>;
         state: ProcessedComputable<BoardData>;
         links: ProcessedComputable<BoardNodeLink[] | null>;
     }
@@ -208,17 +208,20 @@ export type GenericBoard = Replace<
 export function createBoard<T extends BoardOptions>(
     optionsFunc: OptionsFunc<T, BaseBoard, GenericBoard>
 ): Board<T> {
-    const state = persistent<BoardData>({
-        nodes: [],
-        selectedNode: null,
-        selectedAction: null
-    });
+    const state = persistent<BoardData>(
+        {
+            nodes: [],
+            selectedNode: null,
+            selectedAction: null
+        },
+        false
+    );
 
     return createLazyProxy(() => {
         const board = optionsFunc();
         board.id = getUniqueID("board-");
         board.type = BoardType;
-        board[Component] = BoardComponent;
+        board[Component] = BoardComponent as GenericComponent;
 
         if (board.state) {
             deletePersistent(state);
